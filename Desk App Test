@@ -1,0 +1,455 @@
+index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T-Shirt Mockup Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .canvas-container {
+            position: relative;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button, select, input {
+            padding: 8px 16px;
+            font-size: 16px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .slider-container label {
+            min-width: 120px;
+        }
+        .models-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .model-option {
+            cursor: pointer;
+            border: 2px solid #ddd;
+            padding: 5px;
+            transition: all 0.3s;
+            width: 120px;
+        }
+        .model-option.selected {
+            border-color: #3498db;
+        }
+        .model-option img {
+            width: 100px;
+            height: 150px;
+            object-fit: cover;
+        }
+        .model-option.add-model {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 180px;
+        }
+        .info-text {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        #downloadBtn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        #downloadBtn:hover {
+            background-color: #2980b9;
+        }
+        .hidden {
+            display: none;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background-color: #f5f5f5;
+        }
+        .tab.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>T-Shirt Mockup Generator</h1>
+    
+    <div class="info-text">
+        <p>Upload your design and model images to create custom t-shirt mockups!</p>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="upload">Upload</div>
+        <div class="tab" data-tab="edit">Edit</div>
+    </div>
+
+    <div class="container">
+        <div class="tab-content active" id="upload-tab">
+            <div class="upload-section">
+                <h2>Upload Your Design</h2>
+                <input type="file" id="designUpload" accept="image/*">
+                <p>Recommended: Use PNG images with transparent backgrounds for best results</p>
+            </div>
+            
+            <div class="upload-section">
+                <h2>Upload Model Images</h2>
+                <input type="file" id="modelUpload" accept="image/*" multiple>
+                <p>Upload photos of people wearing plain shirts (ideally front-facing)</p>
+            </div>
+            
+            <div class="loading hidden" id="loadingMsg">
+                <p>Processing images...</p>
+            </div>
+            
+            <button id="nextBtn" disabled>Next: Edit Mockup</button>
+        </div>
+        
+        <div class="tab-content" id="edit-tab">
+            <h2>Choose a Model</h2>
+            <div class="models-container" id="modelsContainer">
+                <!-- Model thumbnails will be added here dynamically -->
+                <div class="model-option add-model" id="addModelBtn">
+                    <span style="font-size: 24px;">+</span>
+                    <p>Add Model</p>
+                </div>
+            </div>
+            
+            <h2>Adjust Your Design</h2>
+            <div class="canvas-container">
+                <canvas id="mockupCanvas" width="600" height="800"></canvas>
+            </div>
+            
+            <div class="controls">
+                <div class="slider-container">
+                    <label for="scaleSlider">Size:</label>
+                    <input type="range" id="scaleSlider" min="10" max="100" value="50">
+                </div>
+                
+                <div class="slider-container">
+                    <label for="xPositionSlider">X Position:</label>
+                    <input type="range" id="xPositionSlider" min="0" max="100" value="50">
+                </div>
+                
+                <div class="slider-container">
+                    <label for="yPositionSlider">Y Position:</label>
+                    <input type="range" id="yPositionSlider" min="0" max="100" value="30">
+                </div>
+                
+                <div class="slider-container">
+                    <label for="rotationSlider">Rotation:</label>
+                    <input type="range" id="rotationSlider" min="-180" max="180" value="0">
+                </div>
+            </div>
+            
+            <button id="downloadBtn">Download Mockup</button>
+            <button id="backBtn">Back to Upload</button>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let canvas = document.getElementById('mockupCanvas');
+        let ctx = canvas.getContext('2d');
+        let designImage = null;
+        let modelImages = [];
+        let currentModelIndex = 0;
+        let designScale = 0.5;
+        let designX = 300;
+        let designY = 240;
+        let designRotation = 0;
+        
+        // Initialize
+        document.getElementById('nextBtn').disabled = true;
+        
+        // Tab functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Only allow switching to edit tab if we have images
+                if (this.dataset.tab === 'edit' && (modelImages.length === 0 || !designImage)) {
+                    alert('Please upload at least one model image and one design first!');
+                    return;
+                }
+                
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                this.classList.add('active');
+                document.getElementById(`${this.dataset.tab}-tab`).classList.add('active');
+                
+                if (this.dataset.tab === 'edit') {
+                    drawMockup();
+                }
+            });
+        });
+        
+        // Design upload
+        document.getElementById('designUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('loadingMsg').classList.remove('hidden');
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    designImage = new Image();
+                    designImage.src = event.target.result;
+                    designImage.onload = function() {
+                        document.getElementById('loadingMsg').classList.add('hidden');
+                        checkIfCanProceed();
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Model upload
+        document.getElementById('modelUpload').addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                document.getElementById('loadingMsg').classList.remove('hidden');
+                
+                let filesProcessed = 0;
+                for (let i = 0; i < files.length; i++) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.src = event.target.result;
+                        img.onload = function() {
+                            modelImages.push(img);
+                            filesProcessed++;
+                            
+                            if (filesProcessed === files.length) {
+                                updateModelThumbnails();
+                                document.getElementById('loadingMsg').classList.add('hidden');
+                                checkIfCanProceed();
+                            }
+                        };
+                    };
+                    reader.readAsDataURL(files[i]);
+                }
+            }
+        });
+        
+        // Add model button
+        document.getElementById('addModelBtn').addEventListener('click', function() {
+            document.getElementById('modelUpload').click();
+        });
+        
+        // Next button
+        document.getElementById('nextBtn').addEventListener('click', function() {
+            document.querySelector('.tab[data-tab="edit"]').click();
+        });
+        
+        // Back button
+        document.getElementById('backBtn').addEventListener('click', function() {
+            document.querySelector('.tab[data-tab="upload"]').click();
+        });
+        
+        // Design adjustment sliders
+        document.getElementById('scaleSlider').addEventListener('input', function(e) {
+            designScale = e.target.value / 100;
+            drawMockup();
+        });
+        
+        document.getElementById('xPositionSlider').addEventListener('input', function(e) {
+            designX = (e.target.value / 100) * canvas.width;
+            drawMockup();
+        });
+        
+        document.getElementById('yPositionSlider').addEventListener('input', function(e) {
+            designY = (e.target.value / 100) * canvas.height;
+            drawMockup();
+        });
+        
+        document.getElementById('rotationSlider').addEventListener('input', function(e) {
+            designRotation = parseInt(e.target.value);
+            drawMockup();
+        });
+        
+        // Download button
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            if (designImage && modelImages.length > 0) {
+                const dataURL = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = 'tshirt-mockup.png';
+                link.href = dataURL;
+                link.click();
+            } else {
+                alert('Please make sure you have uploaded both a design and at least one model image!');
+            }
+        });
+        
+        // Helper functions
+        function checkIfCanProceed() {
+            const canProceed = designImage && modelImages.length > 0;
+            document.getElementById('nextBtn').disabled = !canProceed;
+        }
+        
+        function updateModelThumbnails() {
+            // Clear existing thumbnails (except the "Add Model" button)
+            const container = document.getElementById('modelsContainer');
+            while (container.firstChild && container.firstChild.id !== 'addModelBtn') {
+                container.removeChild(container.firstChild);
+            }
+            
+            // Add thumbnails for each model
+            modelImages.forEach((img, index) => {
+                const modelOption = document.createElement('div');
+                modelOption.className = 'model-option';
+                if (index === currentModelIndex) {
+                    modelOption.classList.add('selected');
+                }
+                modelOption.dataset.index = index;
+                
+                const thumbnail = document.createElement('img');
+                // Create a thumbnail from the model image
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Calculate thumbnail dimensions while maintaining aspect ratio
+                const aspectRatio = img.width / img.height;
+                let thumbWidth = 100;
+                let thumbHeight = 150;
+                
+                if (aspectRatio > thumbWidth / thumbHeight) {
+                    thumbHeight = thumbWidth / aspectRatio;
+                } else {
+                    thumbWidth = thumbHeight * aspectRatio;
+                }
+                
+                tempCanvas.width = 100;
+                tempCanvas.height = 150;
+                tempCtx.drawImage(img, 0, 0, 100, 150);
+                thumbnail.src = tempCanvas.toDataURL();
+                thumbnail.alt = `Model ${index + 1}`;
+                
+                const label = document.createElement('p');
+                label.textContent = `Model ${index + 1}`;
+                
+                modelOption.appendChild(thumbnail);
+                modelOption.appendChild(label);
+                
+                modelOption.addEventListener('click', function() {
+                    document.querySelectorAll('.model-option').forEach(opt => {
+                        if (opt.id !== 'addModelBtn') {
+                            opt.classList.remove('selected');
+                        }
+                    });
+                    this.classList.add('selected');
+                    currentModelIndex = parseInt(this.dataset.index);
+                    drawMockup();
+                });
+                
+                // Insert before the "Add Model" button
+                container.insertBefore(modelOption, document.getElementById('addModelBtn'));
+            });
+        }
+        
+        function drawMockup() {
+            if (!designImage || modelImages.length === 0) return;
+            
+            const currentModel = modelImages[currentModelIndex];
+            
+            // Resize canvas to match model image aspect ratio while keeping reasonable dimensions
+            const aspectRatio = currentModel.width / currentModel.height;
+            if (aspectRatio > 1) {
+                // Landscape orientation
+                canvas.width = 800;
+                canvas.height = 800 / aspectRatio;
+            } else {
+                // Portrait orientation
+                canvas.height = 800;
+                canvas.width = 800 * aspectRatio;
+            }
+            
+            // Center design position based on new canvas dimensions
+            designX = canvas.width / 2;
+            designY = canvas.height / 3; // Position slightly above center
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw model image
+            ctx.drawImage(currentModel, 0, 0, canvas.width, canvas.height);
+            
+            // Draw design
+            ctx.save();
+            
+            // Move to position, rotate, then draw
+            ctx.translate(designX, designY);
+            ctx.rotate(designRotation * Math.PI / 180);
+            
+            const scaledWidth = designImage.width * designScale;
+            const scaledHeight = designImage.height * designScale;
+            
+            ctx.drawImage(designImage, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+            
+            ctx.restore();
+            
+            // Reset sliders to match current values
+            document.getElementById('scaleSlider').value = designScale * 100;
+            document.getElementById('xPositionSlider').value = (designX / canvas.width) * 100;
+            document.getElementById('yPositionSlider').value = (designY / canvas.height) * 100;
+            document.getElementById('rotationSlider').value = designRotation;
+        }
+    </script>
+</body>
+</html>
